@@ -1,6 +1,6 @@
 mod metrics;
-mod trace_id_format;
 mod trace;
+mod trace_id_format;
 use self::metrics::*;
 use self::trace_id_format::TraceIdFormat;
 use axum::middleware as mw;
@@ -10,10 +10,10 @@ use reqwest_tracing::TracingMiddleware;
 mod middleware;
 
 pub use self::trace::*;
-pub use tracing::{error, info, instrument};
 pub use reqwest_middleware::ClientWithMiddleware;
+pub use tracing::{error, info, instrument, warn};
 
-pub fn build_reqwest()->ClientWithMiddleware{
+pub fn build_reqwest() -> ClientWithMiddleware {
     reqwest_middleware::ClientBuilder::new(reqwest::Client::new())
         .with(TracingMiddleware)
         .build()
