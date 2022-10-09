@@ -16,7 +16,11 @@ http = "0.2"
 tracing = "0.1"
 tracing-error = "0.2"
 tracing-opentelemetry = "0.18"
-tracing-subscriber = { version = "0.3", features = ["env-filter","fmt", "json"] }
+tracing-subscriber = { version = "0.3", features = [
+  "env-filter",
+  "fmt",
+  "json",
+] }
 opentelemetry = { version = "0.18", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.11", features = [
   "http-proto",
@@ -27,10 +31,10 @@ opentelemetry-semantic-conventions = "0.10.0"
 
 reqwest = { version = "0.11", features = ["json"] }
 reqwest-middleware = { version = "0.1" }
-reqwest-tracing = { version = "0.2", features = ["opentelemetry_0_17"] }
+reqwest-tracing = { version = "0.3", features = ["opentelemetry_0_18"] }
 
 metrics = "0.20"
-metrics-exporter-prometheus = "0.9.0"
+metrics-exporter-prometheus = "0.11.0"
 
 chrono = "0.4"
 tracing-serde = "0.1"

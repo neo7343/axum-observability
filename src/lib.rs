@@ -6,7 +6,9 @@ use self::trace_id_format::TraceIdFormat;
 use axum::middleware as mw;
 use axum::routing::get;
 use axum::Router;
-use reqwest_tracing::TracingMiddleware;
+
+use reqwest_tracing::{DefaultSpanBackend, TracingMiddleware};
+
 mod middleware;
 
 pub use self::trace::*;
@@ -15,7 +17,7 @@ pub use tracing::{error, info, instrument, warn};
 
 pub fn build_reqwest() -> ClientWithMiddleware {
     reqwest_middleware::ClientBuilder::new(reqwest::Client::new())
-        .with(TracingMiddleware)
+        .with(TracingMiddleware::<DefaultSpanBackend>::new())
         .build()
 }
 
