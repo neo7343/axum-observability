@@ -46,7 +46,7 @@ pub fn shutdown_tracer() {
 
 fn export_config() -> ExportConfig {
     ExportConfig {
-        endpoint: std::env::var("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+        endpoint: std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
             .unwrap_or("http://localhost:4317".to_string()),
         timeout: Duration::from_secs(3),
         protocol: Protocol::Grpc,
