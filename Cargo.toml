@@ -21,20 +21,18 @@ tracing-subscriber = { version = "0.3", features = [
   "fmt",
   "json",
 ] }
-opentelemetry = { version = "0.18", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.11", features = [
+opentelemetry = { version = "0.18.0", features = ["rt-tokio","metrics"] }
+opentelemetry-otlp = { version = "0.11.0", features = [
   "http-proto",
   "reqwest-client",
   "reqwest-rustls",
+  "metrics",
 ] }
 opentelemetry-semantic-conventions = "0.10.0"
 
 reqwest = { version = "0.11", features = ["json"] }
 reqwest-middleware = { version = "0.1" }
 reqwest-tracing = { version = "0.3", features = ["opentelemetry_0_18"] }
-
-metrics = "0.20"
-metrics-exporter-prometheus = "0.11.0"
 
 chrono = "0.4"
 tracing-serde = "0.1"
