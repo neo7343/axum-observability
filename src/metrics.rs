@@ -47,13 +47,13 @@ pub async fn track_metrics<B>(req: Request<B>, next: Next<B>) -> impl IntoRespon
 
     let response = next.run(req).await;
 
-    let latency = start.elapsed().as_millis() as u64;
+    let latency = start.elapsed().as_secs_f64();
     let status = response.status().as_u16().to_string();
 
     // get a meter from a provider
     let meter = global::meter("");
 
-    let histogram = meter.u64_histogram("http.server.duration").init();
+    let histogram = meter.f64_histogram("http.server.duration").init();
 
     histogram.record(
         &Context::current(),
