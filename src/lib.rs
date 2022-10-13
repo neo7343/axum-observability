@@ -9,6 +9,7 @@ use axum::middleware as mw;
 use axum::Router;
 use opentelemetry::sdk::metrics::controllers::BasicController;
 use opentelemetry::sdk::Resource;
+use opentelemetry::Context;
 use opentelemetry_otlp::ExportConfig;
 use opentelemetry_otlp::Protocol;
 use reqwest_tracing::{DefaultSpanBackend, TracingMiddleware};
@@ -42,6 +43,10 @@ pub fn setup_tracer_and_meter() -> anyhow::Result<BasicController> {
 
 pub fn shutdown_tracer() {
     opentelemetry::global::shutdown_tracer_provider();
+}
+
+pub fn stop_meter(controller: BasicController) {
+    controller.stop(&Context::current()).unwrap();
 }
 
 fn export_config() -> ExportConfig {
