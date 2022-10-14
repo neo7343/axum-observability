@@ -50,9 +50,11 @@ pub fn stop_meter(controller: BasicController) {
 }
 
 fn export_config() -> ExportConfig {
+    let endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+    .unwrap_or("http://localhost:4317".to_string());
+    tracing::info!("otel endpoint:{}",endpoint);
     ExportConfig {
-        endpoint: std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
-            .unwrap_or("http://localhost:4317".to_string()),
+        endpoint,
         timeout: Duration::from_secs(3),
         protocol: Protocol::Grpc,
     }
