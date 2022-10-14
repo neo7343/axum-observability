@@ -18,7 +18,7 @@ use metrics::*;
 use opentelemetry_semantic_conventions as semcov;
 
 pub use reqwest_middleware::ClientWithMiddleware;
-pub use tracing::{error, info, instrument, warn};
+pub use tracing::{error, info, instrument, warn, Instrument};
 
 pub fn build_reqwest() -> ClientWithMiddleware {
     reqwest_middleware::ClientBuilder::new(reqwest::Client::new())
@@ -50,9 +50,9 @@ pub fn stop_meter(controller: BasicController) {
 }
 
 fn export_config() -> ExportConfig {
-    let endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
-    .unwrap_or("http://localhost:4317".to_string());
-    tracing::info!("otel endpoint:{}",endpoint);
+    let endpoint =
+        std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").unwrap_or("http://localhost:4317".to_string());
+    tracing::info!("otel endpoint:{}", endpoint);
     ExportConfig {
         endpoint,
         timeout: Duration::from_secs(3),
