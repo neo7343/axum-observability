@@ -1,4 +1,5 @@
 use chrono::Utc;
+use opentelemetry::trace::TraceContextExt;
 use serde::ser::{SerializeMap, Serializer as _};
 
 use std::io;
@@ -38,6 +39,7 @@ where
 
             if let Some(span_ref) = ctx.lookup_current() {
                 if let Some(o) = span_ref.extensions().get::<OtelData>() {
+                    println!("{}",o.parent_cx.span().span_context().trace_id().to_string());
                     if let Some(trace_id) = o.builder.trace_id {
                         serializer.serialize_entry("trace", &trace_id.to_string())?;
                     }
