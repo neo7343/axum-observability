@@ -24,9 +24,6 @@ tracing-subscriber = { version = "0.3", features = [
 ] }
 opentelemetry = { version = "0.18.0", features = ["rt-tokio","metrics"] }
 opentelemetry-otlp = { version = "0.11.0", features = [
-  "http-proto",
-  "reqwest-client",
-  "reqwest-rustls",
   "metrics",
 ] }
 opentelemetry-semantic-conventions = "0.10.0"
