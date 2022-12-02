@@ -27,7 +27,7 @@ pub fn build_reqwest() -> ClientWithMiddleware {
 
 pub fn init_router<S>(router: Router<S>) -> Router<S>
 where
-    S: Send + Sync + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     router
         .layer(middleware::opentelemetry_tracing_layer())
