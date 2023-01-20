@@ -1,3 +1,4 @@
+//
 //! OpenTelemetry middleware.
 //!
 //! See [`opentelemetry_tracing_layer`] for more details.
@@ -271,7 +272,7 @@ impl<B> OnResponse<B> for OtelOnResponse {
         span.record("http.status_code", &tracing::field::display(status));
 
         // assume there is no error, if there is `OtelOnFailure` will be called and override this
-        span.record("otel.status_code", &"OK");
+        span.record("otel.status_code", "OK");
     }
 }
 
@@ -309,12 +310,253 @@ impl OnFailure<ServerErrorsFailureClass> for OtelOnFailure {
         match failure {
             ServerErrorsFailureClass::StatusCode(status) => {
                 if status.is_server_error() {
-                    span.record("otel.status_code", &"ERROR");
+                    span.record("otel.status_code", "ERROR");
                 }
             }
             ServerErrorsFailureClass::Error(_) => {
-                span.record("otel.status_code", &"ERROR");
+                span.record("otel.status_code", "ERROR");
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert2::*;
+    use assert_json_diff::assert_json_include;
+    use axum::{body::Body, routing::get, Router};
+    use http::{Request, StatusCode};
+    use serde_json::{json, Value};
+    use std::{
+        convert::TryInto,
+        sync::mpsc::{self, Receiver, SyncSender},
+    };
+    use tower::{Service, ServiceExt};
+    use tracing_subscriber::{
+        fmt::{format::FmtSpan, MakeWriter},
+        util::SubscriberInitExt,
+        EnvFilter,
+    };
+
+    #[tokio::test]
+    async fn http_route_populating() {
+        let svc = Router::new()
+            .route("/users/:id", get(|| async { StatusCode::OK }))
+            .layer(opentelemetry_tracing_layer());
+
+        let [(populated, _), (unpopulated, _)] = spans_for_requests(
+            svc,
+            [
+                Request::builder()
+                    .uri("/users/123")
+                    .body(Body::empty())
+                    .unwrap(),
+                Request::builder()
+                    .uri("/idontexist/123")
+                    .body(Body::empty())
+                    .unwrap(),
+            ],
+        )
+        .await;
+
+        assert_json_include!(
+            actual: populated,
+            expected: json!({
+                "span": {
+                    "http.route": "/users/:id",
+                    "http.target": "/users/123",
+                    "http.client_ip": "",
+                }
+            }),
+        );
+
+        assert_json_include!(
+            actual: unpopulated,
+            expected: json!({
+                "span": {
+                    "http.route": "",
+                    "http.target": "/idontexist/123",
+                    "http.client_ip": "",
+                }
+            }),
+        );
+    }
+
+    #[tokio::test]
+    async fn correct_fields_on_span_for_http() {
+        let svc = Router::new()
+            .route("/", get(|| async { StatusCode::OK }))
+            .route(
+                "/users/:id",
+                get(|| async { StatusCode::INTERNAL_SERVER_ERROR }),
+            )
+            .layer(opentelemetry_tracing_layer());
+
+        let [(root_new, root_close), (users_id_new, users_id_close)] = spans_for_requests(
+            svc,
+            [
+                Request::builder()
+                    .header("user-agent", "tests")
+                    .header("x-forwarded-for", "127.0.0.1")
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+                Request::builder()
+                    .uri("/users/123")
+                    .body(Body::empty())
+                    .unwrap(),
+            ],
+        )
+        .await;
+
+        let_assert!(
+            Some(_trace_id) = root_new["span"]["trace_id"].as_str(),
+            "assert that trace_id is not empty when tracer is not Noop"
+        );
+        assert_json_include!(
+            actual: root_new,
+            expected: json!({
+                "fields": {
+                    "message": "new",
+                },
+                "level": "INFO",
+                "span": {
+                    "http.client_ip": "127.0.0.1",
+                    "http.flavor": "1.1",
+                    "http.host": "",
+                    "http.method": "GET",
+                    "http.route": "/",
+                    "http.scheme": "HTTP",
+                    "http.target": "/",
+                    "http.user_agent": "tests",
+                    "name": "HTTP request",
+                    "otel.kind": "server",
+                    "otel.name": "GET /",
+                }
+            }),
+        );
+
+        assert_json_include!(
+            actual: root_close,
+            expected: json!({
+                "fields": {
+                    "message": "close",
+                },
+                "level": "INFO",
+                "span": {
+                    "http.client_ip": "127.0.0.1",
+                    "http.flavor": "1.1",
+                    "http.host": "",
+                    "http.method": "GET",
+                    "http.route": "/",
+                    "http.scheme": "HTTP",
+                    "http.status_code": "200",
+                    "http.target": "/",
+                    "http.user_agent": "tests",
+                    "name": "HTTP request",
+                    "otel.kind": "server",
+                    "otel.status_code": "OK",
+                    "otel.name": "GET /",
+                }
+            }),
+        );
+
+        assert_json_include!(
+            actual: users_id_new,
+            expected: json!({
+                "span": {
+                    "http.route": "/users/:id",
+                    "http.target": "/users/123",
+                    "http.client_ip": "",
+                }
+            }),
+        );
+
+        assert_json_include!(
+            actual: users_id_close,
+            expected: json!({
+                "span": {
+                    "http.status_code": "500",
+                    "otel.status_code": "ERROR",
+                    "http.client_ip": "",
+                }
+            }),
+        );
+    }
+
+    async fn spans_for_requests<const N: usize>(
+        mut router: Router,
+        reqs: [Request<Body>; N],
+    ) -> [(Value, Value); N] {
+        use axum::body::HttpBody as _;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // setup a non Noop OpenTelemetry tracer to have non-empty trace_id
+        let tracer = opentelemetry_otlp::new_pipeline()
+            .tracing()
+            .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+            .install_batch(opentelemetry::runtime::Tokio)
+            .unwrap();
+        let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+
+        let (make_writer, rx) = duplex_writer();
+        let fmt_layer = tracing_subscriber::fmt::layer()
+            .json()
+            .with_writer(make_writer)
+            .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE);
+        let subscriber = tracing_subscriber::registry()
+            .with(EnvFilter::try_new("axum_extra=trace,info").unwrap())
+            .with(fmt_layer)
+            .with(otel_layer);
+        let _guard = subscriber.set_default();
+
+        let mut spans = Vec::new();
+
+        for req in reqs {
+            let mut res = router.ready().await.unwrap().call(req).await.unwrap();
+
+            while res.data().await.is_some() {}
+            res.trailers().await.unwrap();
+            drop(res);
+
+            let logs = std::iter::from_fn(|| rx.try_recv().ok())
+                .map(|bytes| serde_json::from_slice::<Value>(&bytes).unwrap())
+                .collect::<Vec<_>>();
+            let [new, close]: [_; 2] = logs.try_into().unwrap();
+
+            spans.push((new, close));
+        }
+
+        spans.try_into().unwrap()
+    }
+
+    fn duplex_writer() -> (DuplexWriter, Receiver<Vec<u8>>) {
+        let (tx, rx) = mpsc::sync_channel(1024);
+        (DuplexWriter { tx }, rx)
+    }
+
+    #[derive(Clone)]
+    struct DuplexWriter {
+        tx: SyncSender<Vec<u8>>,
+    }
+
+    impl<'a> MakeWriter<'a> for DuplexWriter {
+        type Writer = Self;
+
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    impl std::io::Write for DuplexWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.tx.send(buf.to_vec()).unwrap();
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
         }
     }
 }

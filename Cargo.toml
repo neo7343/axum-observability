@@ -7,11 +7,13 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.6", features = ["json"] }
+futures = "0.3"
 tokio = "1"
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # thiserror = "1"
+tower = "0.4"
 tower-http = { version = "0.3", features = ["trace"] }
 http = "0.2"
 tracing = "0.1"
@@ -22,15 +24,34 @@ tracing-subscriber = { version = "0.3", features = [
   "fmt",
   "json",
 ] }
-opentelemetry = { version = "0.18.0", features = ["rt-tokio","metrics"] }
-opentelemetry-otlp = { version = "0.11.0", features = [
+opentelemetry = { version = "0.18", features = ["rt-tokio","metrics"] }
+opentelemetry-otlp = { version = "0.11", features = [
   "metrics",
 ] }
-opentelemetry-semantic-conventions = "0.10.0"
+opentelemetry-semantic-conventions = "0.10"
 
 reqwest = { version = "0.11", features = ["json"] }
-reqwest-middleware = { version = "0.1" }
-reqwest-tracing = { version = "0.3", features = ["opentelemetry_0_18"] }
+reqwest-middleware = { version = "0.2" }
+reqwest-tracing = { version = "0.4", features = ["opentelemetry_0_18"] }
 
 chrono = "0.4"
 tracing-serde = "0.1"
+
+
+[dev-dependencies]
+assert2 = "0.3"
+assert-json-diff = "2.0"
+opentelemetry-otlp = { version = "0.11", features = [
+  "http-proto",
+  "reqwest-client",
+  "reqwest-rustls",
+] }
+rstest = "0.16"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+  "env-filter",
+  "fmt",
+  "json",
+] }

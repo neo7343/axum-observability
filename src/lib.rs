@@ -1,5 +1,6 @@
 // mod metrics;
 mod metrics;
+mod tools;
 mod trace;
 mod trace_id_format;
 use std::time::Duration;
@@ -18,6 +19,7 @@ use metrics::*;
 use opentelemetry_semantic_conventions as semcov;
 
 pub use reqwest_middleware::ClientWithMiddleware;
+pub use tools::*;
 
 pub fn build_reqwest() -> ClientWithMiddleware {
     reqwest_middleware::ClientBuilder::new(reqwest::Client::new())
@@ -30,12 +32,16 @@ where
     S: Clone + Send + Sync + 'static,
 {
     router
+        .layer(middleware::response_with_trace_layer())
         .layer(middleware::opentelemetry_tracing_layer())
         .route_layer(mw::from_fn(track_metrics))
 }
 
 pub fn setup_tracer_and_meter() -> anyhow::Result<BasicController> {
-    let resource = make_resource(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    let resource = make_resource(
+        std::env::var("OTEL_SERVICE_NAME").unwrap_or_else(|_| env!("CARGO_PKG_NAME").to_string()),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
     trace::setup(resource.clone(), export_config())?;
     metrics::setup_meter(resource, export_config())
 }

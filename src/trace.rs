@@ -18,7 +18,14 @@ pub fn setup(resource: Resource, export_config: ExportConfig) -> Result<(), anyh
     let otel_layer = tracing_opentelemetry::layer().with_tracer(otel_tracer);
 
     let fmt_layer = tracing_subscriber::fmt::layer().event_format(super::TraceIdFormat);
-    // .with_timer(tracing_subscriber::fmt::time::uptime());
+
+    // use tracing_subscriber::fmt::format::FmtSpan;
+    // let fmt_layer = tracing_subscriber::fmt::layer()
+    //     .json()
+    //     .with_timer(tracing_subscriber::fmt::time::uptime())
+    //     .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE);
+
+
     let subscriber = tracing_subscriber::registry()
         .with(fmt_layer)
         .with(EnvFilter::from_default_env())
